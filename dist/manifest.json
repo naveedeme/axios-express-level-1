@@ -1,0 +1,21 @@
+{
+  "name": "FullStack Academy — 10-Day Mastery",
+  "short_name": "FullStack Academy",
+  "description": "Master Express, Axios & React Query in 10 days with interactive examples and simulators",
+  "start_url": "/fullstack-academy/",
+  "scope": "/fullstack-academy/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "categories": ["education", "developer"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    { "name": "Day 1 — Express Basics", "url": "/fullstack-academy/?day=1", "description": "Start from Day 1" },
+    { "name": "Simulator", "url": "/fullstack-academy/?tab=simulator", "description": "Open the live simulator" }
+  ]
+}
