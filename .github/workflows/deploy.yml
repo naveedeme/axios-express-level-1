@@ -37,7 +37,14 @@ jobs:
           NODE_ENV: production
           GITHUB_REPOSITORY: ${{ github.repository }}
 
-      - name: Generate dynamic manifest and service worker
+      - name: Copy PWA assets into dist
+        run: |
+          cp public/icon-192.png        dist/icon-192.png
+          cp public/icon-512.png        dist/icon-512.png
+          cp public/apple-touch-icon.png dist/apple-touch-icon.png
+          cp public/favicon.svg         dist/favicon.svg
+
+      - name: Generate manifest.json with correct base path
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           BASE="/${REPO_NAME}/"
@@ -54,20 +61,35 @@ jobs:
             "background_color": "#0d1117",
             "theme_color": "#6366f1",
             "orientation": "portrait-primary",
+            "categories": ["education", "developer"],
             "icons": [
-              { "src": "${BASE}icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-              { "src": "${BASE}icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+              {
+                "src": "${BASE}icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+              },
+              {
+                "src": "${BASE}icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+              }
             ]
           }
           MANIFEST
 
+      - name: Generate service worker
+        run: |
           cat > dist/sw.js << 'SWEOF'
-          const CACHE = 'fsa-v1';
+          const CACHE = 'fsa-v2';
           self.addEventListener('install', () => self.skipWaiting());
           self.addEventListener('activate', e => {
-            e.waitUntil(caches.keys().then(keys =>
-              Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-            ));
+            e.waitUntil(
+              caches.keys().then(keys =>
+                Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+              )
+            );
             self.clients.claim();
           });
           self.addEventListener('fetch', e => {
@@ -76,7 +98,7 @@ jobs:
               caches.match(e.request).then(cached => {
                 if (cached) return cached;
                 return fetch(e.request).then(res => {
-                  if (!res || res.status !== 200) return res;
+                  if (!res || res.status !== 200 || res.type === 'opaque') return res;
                   caches.open(CACHE).then(c => c.put(e.request, res.clone()));
                   return res;
                 }).catch(() => caches.match(e.request));
@@ -84,6 +106,9 @@ jobs:
             );
           });
           SWEOF
+
+      - name: List dist contents (debug)
+        run: ls -la dist/ && echo "---" && cat dist/manifest.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
