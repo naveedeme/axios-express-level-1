@@ -44,7 +44,20 @@ export default function App() {
     certified,
   } = useProgress();
 
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
   // PWA install prompt
+  useEffect(() => {
+    const goOnline  = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
@@ -153,6 +166,25 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {/* ── OFFLINE BANNER ──────────────────────────────────── */}
+      {!isOnline && (
+        <div style={{
+          gridColumn: '1 / -1',
+          background: '#854d0e',
+          color: '#fef9c3',
+          padding: '6px 20px',
+          fontSize: '0.78rem',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 60,
+        }}>
+          <span>📵</span>
+          <span>You're offline — all lessons, quizzes, simulators (JS, SQL, RQ) work fine. The API Tester needs a connection.</span>
+        </div>
+      )}
 
       {/* ── SIDEBAR ────────────────────────────────────────── */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>

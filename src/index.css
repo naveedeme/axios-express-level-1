@@ -4,7 +4,37 @@
    Theme: VS Code-inspired, auto dark/light
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* ── Self-hosted fonts — works 100% offline ──────────────── */
+/* UI font: Liberation Sans (clean, similar to Inter/Outfit)  */
+@font-face {
+  font-family: 'Outfit';
+  font-style:  normal;
+  font-weight: 100 500;
+  font-display: swap;
+  src: url('./fonts/ui-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style:  normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url('./fonts/ui-bold.woff2') format('woff2');
+}
+/* Mono font: DejaVu Sans Mono (similar to JetBrains Mono)    */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style:  normal;
+  font-weight: 100 500;
+  font-display: swap;
+  src: url('./fonts/mono-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style:  normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url('./fonts/mono-bold.woff2') format('woff2');
+}
 
 /* ── Color tokens ─────────────────────────────────────────── */
 :root {

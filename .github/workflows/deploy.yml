@@ -37,19 +37,22 @@ jobs:
           NODE_ENV: production
           GITHUB_REPOSITORY: ${{ github.repository }}
 
-      - name: Copy PWA assets into dist
+      - name: Copy all PWA static assets into dist
         run: |
-          cp public/icon-192.png        dist/icon-192.png
-          cp public/icon-512.png        dist/icon-512.png
+          # Icons
+          cp public/icon-192.png         dist/icon-192.png
+          cp public/icon-512.png         dist/icon-512.png
           cp public/apple-touch-icon.png dist/apple-touch-icon.png
-          cp public/favicon.svg         dist/favicon.svg
+          cp public/favicon.svg          dist/favicon.svg
+          # Self-hosted fonts (offline support)
+          mkdir -p dist/fonts
+          cp public/fonts/*.woff2        dist/fonts/
 
       - name: Generate manifest.json with correct base path
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           BASE="/${REPO_NAME}/"
-          echo "Base path: ${BASE}"
-
+          echo "Base: ${BASE}"
           cat > dist/manifest.json << MANIFEST
           {
             "name": "FullStack Academy — 10-Day Mastery",
@@ -63,52 +66,92 @@ jobs:
             "orientation": "portrait-primary",
             "categories": ["education", "developer"],
             "icons": [
-              {
-                "src": "${BASE}icon-192.png",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any maskable"
-              },
-              {
-                "src": "${BASE}icon-512.png",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any maskable"
-              }
+              { "src": "${BASE}icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+              { "src": "${BASE}icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
             ]
           }
           MANIFEST
 
-      - name: Generate service worker
+      - name: Inject asset filenames + generate final sw.js
         run: |
-          cat > dist/sw.js << 'SWEOF'
-          const CACHE = 'fsa-v2';
-          self.addEventListener('install', () => self.skipWaiting());
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          BASE="/${REPO_NAME}/"
+
+          # Collect all generated asset filenames
+          ASSETS=$(ls dist/assets/ | sed "s|^|  './${BASE#/}assets/|" | sed "s|$|',|")
+          FONTS=$(ls dist/fonts/  | sed "s|^|  './${BASE#/}fonts/|"  | sed "s|$|',|")
+
+          cat > dist/sw.js << SWEOF
+          const VERSION = 'fsa-v3';
+
+          const PRECACHE = [
+            '${BASE}',
+            '${BASE}index.html',
+            '${BASE}manifest.json',
+            '${BASE}favicon.svg',
+            '${BASE}icon-192.png',
+            '${BASE}icon-512.png',
+            '${BASE}apple-touch-icon.png',
+          ${FONTS}
+          ${ASSETS}
+          ];
+
+          self.addEventListener('install', e => {
+            e.waitUntil(
+              caches.open(VERSION)
+                .then(c => c.addAll(PRECACHE))
+                .then(() => self.skipWaiting())
+                .catch(err => { console.error('[SW] precache fail', err); self.skipWaiting(); })
+            );
+          });
+
           self.addEventListener('activate', e => {
             e.waitUntil(
-              caches.keys().then(keys =>
-                Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-              )
+              caches.keys()
+                .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+                .then(() => self.clients.claim())
             );
-            self.clients.claim();
           });
+
           self.addEventListener('fetch', e => {
             if (e.request.method !== 'GET') return;
+            const url = new URL(e.request.url);
+            const isExternal = url.origin !== self.location.origin;
+            if (isExternal) {
+              e.respondWith(
+                fetch(e.request).catch(() =>
+                  new Response(
+                    JSON.stringify({ error: 'Offline — API requests need an internet connection.' }),
+                    { status: 503, headers: { 'Content-Type': 'application/json' } }
+                  )
+                )
+              );
+              return;
+            }
             e.respondWith(
               caches.match(e.request).then(cached => {
                 if (cached) return cached;
-                return fetch(e.request).then(res => {
-                  if (!res || res.status !== 200 || res.type === 'opaque') return res;
-                  caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-                  return res;
-                }).catch(() => caches.match(e.request));
+                return fetch(e.request)
+                  .then(res => {
+                    if (!res || res.status !== 200 || res.type === 'opaque') return res;
+                    caches.open(VERSION).then(c => c.put(e.request, res.clone()));
+                    return res;
+                  })
+                  .catch(() => e.request.mode === 'navigate'
+                    ? caches.match('${BASE}index.html')
+                    : new Response('Offline', { status: 503 })
+                  );
               })
             );
           });
           SWEOF
+          echo "sw.js generated for base ${BASE}"
 
-      - name: List dist contents (debug)
-        run: ls -la dist/ && echo "---" && cat dist/manifest.json
+      - name: Verify dist contents
+        run: |
+          echo "=== dist/ ===" && ls -lh dist/ | grep -v assets
+          echo "=== dist/fonts/ ===" && ls -lh dist/fonts/
+          echo "=== dist/assets/ ===" && ls dist/assets/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

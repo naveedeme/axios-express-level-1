@@ -41,6 +41,25 @@ export default function APITester() {
 
     const start = Date.now();
 
+    // Check offline first
+    if (!navigator.onLine) {
+      setStatus({ code: 0, text: 'Offline', ok: false });
+      setElapsed(0);
+      setResponse(
+        '📵 You are currently offline.\n\n' +
+        'The API Tester requires an internet connection to send real HTTP requests.\n\n' +
+        'Everything else in the app works offline:\n' +
+        '  ✓ All 10 days of lessons\n' +
+        '  ✓ JS Sandbox (runs locally in your browser)\n' +
+        '  ✓ SQL Playground (in-memory simulation)\n' +
+        '  ✓ React Query Visualizer\n' +
+        '  ✓ Quizzes, challenges, progress & certificate\n\n' +
+        'Reconnect to the internet to use the API Tester.'
+      );
+      setLoading(false);
+      return;
+    }
+
     try {
       let parsedHeaders = {};
       try { parsedHeaders = JSON.parse(headers); } catch {}
@@ -69,9 +88,14 @@ export default function APITester() {
       setElapsed(ms);
       setResponse(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
     } catch (err) {
-      setStatus({ code: 0, text: 'Network Error', ok: false });
+      const offline = !navigator.onLine;
+      setStatus({ code: 0, text: offline ? 'Offline' : 'Network Error', ok: false });
       setElapsed(Date.now() - start);
-      setResponse(`Error: ${err.message}\n\nNote: Some APIs block CORS requests from browser. Try jsonplaceholder.typicode.com which allows all origins.`);
+      setResponse(
+        offline
+          ? '📵 Lost connection mid-request. Reconnect and try again.'
+          : `Error: ${err.message}\n\nNote: Some APIs block CORS from browser origins.\nJsonPlaceholder (the presets) always works.`
+      );
     } finally {
       setLoading(false);
     }
